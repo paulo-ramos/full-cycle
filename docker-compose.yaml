@@ -1,25 +1,68 @@
 services:
-
-  laravel:
+  app:
     build:
-      context: ./laravel
-      dockerfile: Dockerfile.prod
-    image: phramos/laravel:prod
-    container_name: laravel
+      context: node
+      dockerfile: Dockerfile
+    container_name: app
     networks:
-      - laranet
+      - node-network
+    volumes:
+      - ./node:/usr/src/app
+    tty: true
+    ports:
+      - "3001:3001"
+  db: 
+    image: mysql:5.7
+    command: 
+      - --ssl-cipher=TLSv1.2
+      - --tls-version=TLSv1.2,TLSv1.3
+      - --innodb-use-native-aio=0
+      - --default-authentication-plugin=mysql_native_password       
+      - --explicit_defaults_for_timestamp=1
+      - --pid-file=/var/run/mysql/mysqld.pid
+      - --gtid-mode=ON 
+      - --enforce-gtid-consistency
+    container_name: db
+    restart: always
+    tty: true
+    ports:
+      - "3306:3306"
+    volumes:
+      - ./mysql:/var/lib/mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: 'ÉSérioQueVocêEstáProcurandoARootPasswordAqui?'
+      MYSQL_DATABASE: nodedb
+      MYSQL_INITDB_SKIP_TZINFO: 1
+      MYSQL_USER: phpmyadmin 
+      MYSQL_PASSWORD: phpmyadminPassword
+    networks:
+      - node-network
   
-  nginx:
-    build:
-      context: ./nginx
-      dockerfile: Dockerfile.prod
-    image: phramos/nginx:prod
-    container_name: nginx
-    networks:
-      - laranet
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:latest
+    restart: always
+    container_name: phpmyadmin
+    depends_on:
+      - db
+    environment:
+      PMA_HOST: db
+      PMA_USER: phpmyadmin 
+      PMA_PASSWORD: phpmyadminPassword
     ports:
       - "8080:80"
+    networks:
+      - node-network
+    volumes: 
+      - ./certs:/certs:ro 
+      - ./certs/config.secret.inc.php:/etc/phpmyadmin/config.secret.inc.php:ro
+    user: "33:33"
 
 networks:
-  laranet:
-    driver: bridge      
+  node-network:
+    driver: bridge  
+
+volumes:
+  mysql:
+  node:
+  certs:
+
